@@ -1,0 +1,80 @@
+<div class="card h-100">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Live Messages</span>
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-secondary" @onclick="OnClearTagValues">Clear TagValues</button>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="OnClearAlarms">Clear Alarms</button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-lg-6">
+                <h6>TagValues (@TagValues.Count)</h6>
+                <div class="table-responsive" style="max-height: 24rem; overflow-y: auto;">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>Received</th>
+                                <th>Path</th>
+                                <th>Value</th>
+                                <th>Quality</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in TagValues)
+                            {
+                                <tr>
+                                    <td>@item.ReceivedAt.ToString("HH:mm:ss")</td>
+                                    <td>@item.Path</td>
+                                    <td>@item.Value</td>
+                                    <td>@item.Quality</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <h6>Alarms (@Alarms.Count)</h6>
+                <div class="table-responsive" style="max-height: 24rem; overflow-y: auto;">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>Received</th>
+                                <th>Path</th>
+                                <th>Priority</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Alarms)
+                            {
+                                <tr>
+                                    <td>@item.ReceivedAt.ToString("HH:mm:ss")</td>
+                                    <td>@item.Path</td>
+                                    <td>@item.Priority</td>
+                                    <td>@item.Status</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<TagValueMessage> TagValues { get; set; } = [];
+
+    [Parameter]
+    public IReadOnlyList<AlarmMessage> Alarms { get; set; } = [];
+
+    [Parameter]
+    public EventCallback OnClearTagValues { get; set; }
+
+    [Parameter]
+    public EventCallback OnClearAlarms { get; set; }
+}

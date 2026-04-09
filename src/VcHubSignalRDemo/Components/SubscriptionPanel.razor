@@ -1,0 +1,57 @@
+<div class="card h-100">
+    <div class="card-header">
+        Subscriptions
+    </div>
+    <div class="card-body d-flex flex-column gap-3">
+        <div>
+            <label class="form-label">Tag paths (comma separated)</label>
+            <input class="form-control" @bind="TagPathsText" @bind:after="OnTagPathChanged" disabled="@(!IsConnected)" />
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-primary" disabled="@(!IsConnected || IsTagValuesActive)" @onclick="OnStartTagValues">Start TagValues</button>
+            <button class="btn btn-outline-primary" disabled="@(!IsConnected || !IsTagValuesActive)" @onclick="OnStopTagValues">Stop TagValues</button>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-warning" disabled="@(!IsConnected || IsAlarmsActive)" @onclick="OnStartAlarms">Start Alarms</button>
+            <button class="btn btn-outline-warning" disabled="@(!IsConnected || !IsAlarmsActive)" @onclick="OnStopAlarms">Stop Alarms</button>
+        </div>
+
+        <div>
+            <span class="badge @(IsTagValuesActive ? "text-bg-success" : "text-bg-secondary") me-2">TagValues: @(IsTagValuesActive ? "Running" : "Stopped")</span>
+            <span class="badge @(IsAlarmsActive ? "text-bg-success" : "text-bg-secondary")">Alarms: @(IsAlarmsActive ? "Running" : "Stopped")</span>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public bool IsConnected { get; set; }
+
+    [Parameter]
+    public bool IsTagValuesActive { get; set; }
+
+    [Parameter]
+    public bool IsAlarmsActive { get; set; }
+
+    [Parameter]
+    public string TagPathsText { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> TagPathsTextChanged { get; set; }
+
+    [Parameter]
+    public EventCallback OnStartTagValues { get; set; }
+
+    [Parameter]
+    public EventCallback OnStopTagValues { get; set; }
+
+    [Parameter]
+    public EventCallback OnStartAlarms { get; set; }
+
+    [Parameter]
+    public EventCallback OnStopAlarms { get; set; }
+
+    private Task OnTagPathChanged() => TagPathsTextChanged.InvokeAsync(TagPathsText);
+}

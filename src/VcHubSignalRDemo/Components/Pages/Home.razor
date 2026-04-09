@@ -1,0 +1,191 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@implements IDisposable
+
+@inject IOptions<OpenApiOptions> OpenApiOptionsAccessor
+@inject IOptions<SignalROptions> SignalROptionsAccessor
+@inject IOptions<DemoOptions> DemoOptionsAccessor
+@inject ISignalRStreamService SignalRStreamService
+@inject ConnectionStateStore StateStore
+
+<PageTitle>VC Hub SignalR Demo</PageTitle>
+
+<div class="container-fluid py-3">
+	<h2 class="mb-3">VC Hub SignalR Demo</h2>
+	<ErrorBanner Message="@StateStore.LatestError" />
+
+	<div class="row g-3 mb-3">
+		<div class="col-lg-6">
+			<ConnectionPanel Settings="@_settings"
+							 ConnectionStatus="@StateStore.ConnectionStatus.ToString()"
+							 IsConnected="@IsConnected"
+							 IsBusy="@_isBusy"
+							 OnTestAuth="@TestAuthenticationAsync"
+							 OnConnect="@ConnectAsync"
+							 OnDisconnect="@DisconnectAsync" />
+		</div>
+		<div class="col-lg-6">
+			<SubscriptionPanel IsConnected="@IsConnected"
+							   IsTagValuesActive="@StateStore.IsTagValuesActive"
+							   IsAlarmsActive="@StateStore.IsAlarmsActive"
+							   @bind-TagPathsText="@_tagPathsText"
+							   OnStartTagValues="@StartTagValuesAsync"
+							   OnStopTagValues="@StopTagValuesAsync"
+							   OnStartAlarms="@StartAlarmsAsync"
+							   OnStopAlarms="@StopAlarmsAsync" />
+		</div>
+	</div>
+
+	<div class="row g-3">
+		<div class="col-12">
+			<MessagePanel TagValues="@StateStore.TagValues"
+						  Alarms="@StateStore.Alarms"
+						  OnClearTagValues="@ClearTagValues"
+						  OnClearAlarms="@ClearAlarms" />
+		</div>
+		<div class="col-12">
+			<div class="card">
+				<div class="card-header">Event Log</div>
+				<div class="card-body" style="max-height: 16rem; overflow-y: auto;">
+					@if (StateStore.EventLogs.Count == 0)
+					{
+						<div class="text-body-secondary">No events yet.</div>
+					}
+					else
+					{
+						<ul class="list-group list-group-flush">
+							@foreach (var item in StateStore.EventLogs)
+							{
+								<li class="list-group-item px-0">
+									<span class="fw-bold me-2">@item.Time.ToString("HH:mm:ss")</span>
+									<span class="badge text-bg-light border me-2">@item.Level</span>
+									<span>@item.Message</span>
+								</li>
+							}
+						</ul>
+					}
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+@code {
+	private readonly ConnectionSettings _settings = new();
+	private string _tagPathsText = string.Empty;
+	private bool _isBusy;
+
+	private bool IsConnected => StateStore.ConnectionStatus == DemoConnectionStatus.Connected;
+
+	protected override void OnInitialized()
+	{
+		var openApiOptions = OpenApiOptionsAccessor.Value;
+		var signalROptions = SignalROptionsAccessor.Value;
+		var demoOptions = DemoOptionsAccessor.Value;
+
+		_settings.Url = openApiOptions.Url;
+		_settings.ClientId = openApiOptions.ClientId;
+		_settings.ClientSecret = openApiOptions.ClientSecret;
+		_settings.PrimaryRoute = signalROptions.PrimaryRoute;
+
+		_tagPathsText = string.Join(',', demoOptions.DefaultTagPaths);
+
+		StateStore.Changed += OnStateChanged;
+		StateStore.AddEvent("Info", "Demo UI initialized.");
+	}
+
+	public void Dispose()
+	{
+		StateStore.Changed -= OnStateChanged;
+	}
+
+	private void OnStateChanged()
+	{
+		_ = InvokeAsync(StateHasChanged);
+	}
+
+	private Task TestAuthenticationAsync()
+	{
+		return RunActionAsync(async () =>
+		{
+			StateStore.ClearLatestError();
+			await SignalRStreamService.TestAuthenticationAsync(_settings);
+		});
+	}
+
+	private Task ConnectAsync()
+	{
+		return RunActionAsync(async () =>
+		{
+			StateStore.ClearLatestError();
+			await SignalRStreamService.ConnectAsync(_settings);
+		});
+	}
+
+	private Task DisconnectAsync()
+	{
+		return RunActionAsync(() => SignalRStreamService.DisconnectAsync());
+	}
+
+	private Task StartTagValuesAsync()
+	{
+		return RunActionAsync(async () =>
+		{
+			var tags = _tagPathsText
+				.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
+			await SignalRStreamService.StartTagValuesAsync(tags);
+		});
+	}
+
+	private Task StopTagValuesAsync()
+	{
+		return RunActionAsync(() => SignalRStreamService.StopTagValuesAsync());
+	}
+
+	private Task StartAlarmsAsync()
+	{
+		return RunActionAsync(() => SignalRStreamService.StartAlarmsAsync());
+	}
+
+	private Task StopAlarmsAsync()
+	{
+		return RunActionAsync(() => SignalRStreamService.StopAlarmsAsync());
+	}
+
+	private Task ClearTagValues()
+	{
+		StateStore.ClearTagValues();
+		return Task.CompletedTask;
+	}
+
+	private Task ClearAlarms()
+	{
+		StateStore.ClearAlarms();
+		return Task.CompletedTask;
+	}
+
+	private async Task RunActionAsync(Func<Task> action)
+	{
+		if (_isBusy)
+		{
+			return;
+		}
+
+		_isBusy = true;
+		try
+		{
+			await action();
+		}
+		catch (Exception ex)
+		{
+			StateStore.SetConnectionStatus(DemoConnectionStatus.Error, ex.Message);
+			StateStore.AddEvent("Error", ex.Message);
+		}
+		finally
+		{
+			_isBusy = false;
+			await InvokeAsync(StateHasChanged);
+		}
+	}
+}
